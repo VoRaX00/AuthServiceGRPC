@@ -15,7 +15,9 @@ func Register(gRPC *grpc.Server) {
 }
 
 func (s *serverAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
-	panic("implement me")
+	return &ssov1.LoginResponse{
+		Token: in.GetEmail(),
+	}, nil
 }
 
 func (s *serverAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*ssov1.RegisterResponse, error) {
