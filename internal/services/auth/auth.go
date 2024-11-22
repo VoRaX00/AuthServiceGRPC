@@ -67,22 +67,27 @@ func (a *Auth) Login(ctx context.Context,
 	user, err := a.usrProvider.User(ctx, email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
-			a.log.Warn("user not found", err.Error())
+			log.Warn("user not found", err.Error())
 			return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 		}
 
-		a.log.Warn("failed to get user")
+		log.Warn("failed to get user")
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
-	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
-		a.log.Info("invalid credentials", err.Error())
+	if err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+		log.Info("invalid credentials", err.Error())
 		return "", fmt.Errorf("%s: %w", op, ErrInvalidCredentials)
 	}
 
 	app, err := a.appProvider.App(ctx, appID)
 	if err != nil {
-		a.log.Warn("failed to get app")
+		if errors.Is(err, storage.ErrAppNotFound) {
+			log.Warn("app not found", err.Error())
+			return "", fmt.Errorf("%s: %w", op, ErrInvalidAppID)
+		}
+
+		log.Warn("failed to get app")
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -90,7 +95,7 @@ func (a *Auth) Login(ctx context.Context,
 
 	token, err := jwt.NewToken(user, app, a.tokenTTL)
 	if err != nil {
-		a.log.Warn("failed to create token", err.Error())
+		log.Warn("failed to create token", err.Error())
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -115,6 +120,11 @@ func (a *Auth) Register(ctx context.Context,
 
 	id, err := a.usrSaver.SaveUser(ctx, email, passHash)
 	if err != nil {
+		if errors.Is(err, storage.ErrUserExists) {
+			log.Warn("user already exists", err.Error())
+			return 0, fmt.Errorf("%s: %w", op, err)
+		}
+
 		log.Error("failed to save user", err.Error())
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
