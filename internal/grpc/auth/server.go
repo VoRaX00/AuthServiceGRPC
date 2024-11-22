@@ -3,20 +3,44 @@ package auth
 import (
 	"context"
 	ssov1 "github.com/VoRaX00/protobufSSO/gen/go/sso"
+	"github.com/go-playground/validator/v10"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+type Auth interface {
+	Login(ctx context.Context, email, password string, appID int32) (token string, err error)
+	Register(ctx context.Context, email, password string) (userID int64, err error)
+	IsAdmin(ctx context.Context, userID int64) (isAdmin bool, err error)
+}
 
 type serverAPI struct {
 	ssov1.UnimplementedAuthServer
+	auth Auth
 }
 
-func Register(gRPC *grpc.Server) {
-	ssov1.RegisterAuthServer(gRPC, &serverAPI{})
+func Register(gRPC *grpc.Server, auth Auth) {
+	ssov1.RegisterAuthServer(gRPC, &serverAPI{
+		auth: auth,
+	})
 }
 
-func (s *serverAPI) Login(ctx context.Context, in *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
+const emptyValue = 0
+
+func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
+	if err := validateLogin(req); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	token, err := s.auth.Login(ctx, req.GetEmail(), req.GetPassword(), req.GetAppId())
+	if err != nil {
+		// TODO: ...
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
 	return &ssov1.LoginResponse{
-		Token: in.GetEmail(),
+		Token: token,
 	}, nil
 }
 
@@ -26,4 +50,22 @@ func (s *serverAPI) Register(ctx context.Context, in *ssov1.RegisterRequest) (*s
 
 func (s *serverAPI) IsAdmin(ctx context.Context, in *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
 	panic("implement me")
+}
+
+func validateLogin(req *ssov1.LoginRequest) error {
+	validate := validator.New()
+	err := validate.Var(req.GetEmail(), "required,email")
+	if err != nil {
+		return status.Error(codes.InvalidArgument, "invalid email")
+	}
+
+	if req.GetPassword() == "" {
+		return status.Error(codes.InvalidArgument, "invalid password")
+	}
+
+	if req.GetAppId() == emptyValue {
+		return status.Error(codes.InvalidArgument, "invalid app id")
+	}
+
+	return nil
 }
