@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1324
+      POSTGRES_DB: sso_db
+      PG_DATA: /var/lib/postgresql/data/
+    ports:
+      - 5401:5432
+    volumes:
+      - db:/var/lib/postgresql/data/
+volumes:
+  db:

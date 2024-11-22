@@ -1,0 +1,7 @@
+db:
+  host: "localhost"
+  port: "5401"
+  name: "sso_db"
+  username: "postgres"
+  ssl_mode: "disable"
+  is_drop: false
