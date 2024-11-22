@@ -26,7 +26,9 @@ func Register(gRPC *grpc.Server, auth Auth) {
 	})
 }
 
-const emptyValue = 0
+const (
+	emptyValue = 0
+)
 
 func (s *serverAPI) Login(ctx context.Context, req *ssov1.LoginRequest) (*ssov1.LoginResponse, error) {
 	if err := validateLogin(req); err != nil {
@@ -60,8 +62,19 @@ func (s *serverAPI) Register(ctx context.Context, req *ssov1.RegisterRequest) (*
 	}, nil
 }
 
-func (s *serverAPI) IsAdmin(ctx context.Context, in *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
-	panic("implement me")
+func (s *serverAPI) IsAdmin(ctx context.Context, req *ssov1.IsAdminRequest) (*ssov1.IsAdminResponse, error) {
+	if err := validateIsAdmin(req); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	isAdmin, err := s.auth.IsAdmin(ctx, req.GetUserId())
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	return &ssov1.IsAdminResponse{
+		IsAdmin: isAdmin,
+	}, nil
 }
 
 func validateLogin(req *ssov1.LoginRequest) error {
@@ -91,6 +104,14 @@ func validateRegister(req *ssov1.RegisterRequest) error {
 
 	if req.GetPassword() == "" {
 		return status.Error(codes.InvalidArgument, "invalid password")
+	}
+
+	return nil
+}
+
+func validateIsAdmin(req *ssov1.IsAdminRequest) error {
+	if req.GetUserId() == emptyValue || req.GetUserId() < 0 {
+		return status.Error(codes.InvalidArgument, "invalid user id")
 	}
 
 	return nil
