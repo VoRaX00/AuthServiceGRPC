@@ -25,10 +25,7 @@ func main() {
 
 	go application.GRPCSrv.MustRun()
 
-	// TODO: запуск gRPC-сервера приложения
-
 	// Graceful shutdown
-
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 

@@ -27,6 +27,7 @@ func New(storagePath string) (*Storage, error) {
 
 const ErrConstraintUnique = "23505"
 
+// SaveUser saves the users
 func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
 	const op = "storage.postgres.SaveUser"
 
@@ -55,6 +56,7 @@ func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (
 	return id, nil
 }
 
+// User returns user by email
 func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	const op = "storage.postgres.User"
 
@@ -78,6 +80,7 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	return user, nil
 }
 
+// IsAdmin checks the admin user or not
 func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 	const op = "storage.postgres.IsAdmin"
 
@@ -99,4 +102,27 @@ func (s *Storage) IsAdmin(ctx context.Context, userID int64) (bool, error) {
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 	return exists, nil
+}
+
+// App returns app by id
+func (s *Storage) App(ctx context.Context, appID int32) (models.App, error) {
+	const op = "storage.postgres.App"
+	stmt, err := s.db.Prepare(`SELECT id, name_app, secret FROM apps WHERE id = ?`)
+	if err != nil {
+		return models.App{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	defer func() {
+		_ = stmt.Close()
+	}()
+
+	var app models.App
+	row := stmt.QueryRowContext(ctx, appID)
+	if err = row.Scan(&app.ID, &app.Name, &app.Secret); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.App{}, storage.ErrAppNotFound
+		}
+		return models.App{}, fmt.Errorf("%s: %w", op, err)
+	}
+	return app, nil
 }
